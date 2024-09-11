@@ -2,11 +2,6 @@ from collections import defaultdict
 import pandas as pd
 import math
 
-"""
-Bayes Theorem
-
-"""
-
 LABEL_COL = 'class_type'
 CATEGORICAL_COLS = ['legs']
 
@@ -30,26 +25,76 @@ def compute_probability_table(data):
             
     num_rows = data.shape[0]
     
+    a = 0.01
+    d = 1
+    
     for class_type, class_stats in class_feat_counts.items():
         class_count = class_stats[0]
         feat_prob = {}
         for feat_name, feat_count in class_stats[1].items():
-            feat_prob[feat_name] = feat_count / class_count
-        class_feat_prob[class_type] = (class_count / num_rows, feat_prob)
+            feat_prob[feat_name] = (feat_count + a) / (class_count + a * d)
+        class_feat_prob[class_type] = ((class_count + a) / (num_rows + a * d), feat_prob)
         
     return class_feat_prob
 
+def calc_nb(class_type, feat_name, class_stats, row):
+    nb = math.log2(class_stats[0])
+            
+    for feat_name, feat_val in row[1:-1].items():
+        feat_probs = class_stats[1]
+        if feat_name in CATEGORICAL_COLS:
+            feat_name = f'{feat_name}_{feat_val}'
+            if feat_name in feat_probs:
+                nb += math.log2(feat_probs[feat_name])
+        elif feat_val > 0:
+            nb += math.log2(feat_probs[feat_name])
+            
+    return pow(2, nb)
+
 def run_test(test, class_feat_prob):
-    pass
+    """
+    Bayes Theorem
+    nb(c | f1, f2, ..., fn) = p(c) * MUL from i = 1 to n (p(xi | c))
+    denom = SUM for all c in C (nb(c | f1, f2, ..., fn))
+    p(x in c) = nb(c | f1, f2, ..., fn) / denom
+    """
+    
+    for feat_name in test.columns:
+        print(feat_name, end=',')
+    print('predicted,probability,correct?')
+    
+    num_correct = 0
+    
+    for i, row in test.iterrows():
+        for val in row.to_list():
+            print(val, end=',')
+
+        # Calculate Naiive Bayes odds for each class
+        highest_nb = (0, None)
+
+        for class_type, class_stats in class_feat_prob.items():
+            nb = calc_nb(class_type,feat_name,class_stats,row)
+            
+            if nb > highest_nb[0]:
+                highest_nb = (nb, class_type)
+                
+        print(highest_nb[1], end=',')
+        print(highest_nb[0], end=',')
+        if highest_nb[1] == row[LABEL_COL]:
+            print('CORRECT')
+            num_correct += 1
+        else:
+            print('wrong')
+    print('Percent Correct:', num_correct / test.shape[0])
 
 def main():
-    LABEL_COL = 'class_type'
     data = pd.read_csv('zoo.csv')
     
     train = data.sample(frac=0.7)
     test = data.drop(train.index)
     class_feat_prob = compute_probability_table(train)
-    print(class_feat_prob)
+    # print(class_feat_prob)
+    
     run_test(test, class_feat_prob)
 
 if __name__ == '__main__':
