@@ -4,7 +4,7 @@ import math
 
 LABEL_COL = 'class_type'
 CATEGORICAL_COLS = ['legs']
-DEBUG = True
+DEBUG = False
 
 def compute_probability_table(data):
     """
@@ -64,6 +64,8 @@ def run_test(test, class_feat_prob):
     nb(c | f1, f2, ..., fn) = p(c) * MUL from i = 1 to n (p(xi | c))
     denom = SUM for all c in C (nb(c | f1, f2, ..., fn))
     p(x in c) = nb(c | f1, f2, ..., fn) / denom
+    
+    returns num_correct
     """
     
     for feat_name in test.columns:
@@ -97,15 +99,29 @@ def run_test(test, class_feat_prob):
             
     if DEBUG:
         print('Percent Correct:', num_correct / test.shape[0])
+    
+    return num_correct
 
-def main():
-    data = pd.read_csv('zoo.csv')
+def run_multiple_tests(data, num_tests=100):
     
     train = data.sample(frac=0.7)
     test = data.drop(train.index)
     class_feat_prob = compute_probability_table(train)
     
-    run_test(test, class_feat_prob)
+    num_per_test = test.shape[0]
+    num_correct = 0
+    for _ in range(num_tests):
+        num_correct += run_test(test, class_feat_prob)
+        train = data.sample(frac=0.7)
+        test = data.drop(train.index)
+        class_feat_prob = compute_probability_table(train)
+    
+    if DEBUG:
+        print(f'Percent correct over {num_tests} tests: {num_correct / (num_per_test * num_tests)}')
+
+def main():
+    data = pd.read_csv('zoo.csv')
+    run_multiple_tests(data, num_tests=1)
 
 if __name__ == '__main__':
     main()
