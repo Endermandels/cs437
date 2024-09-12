@@ -4,10 +4,13 @@ import math
 
 LABEL_COL = 'class_type'
 CATEGORICAL_COLS = ['legs']
+DEBUG = True
 
 def compute_probability_table(data):
     """
-    class_feat_prob: key = class, val = (prob, feat_prob: key = feat, val = prob)
+    class_feat_prob: key = class, val = (prob, default_leg_prob, feat_prob: key = feat, val = prob)
+    default_leg_prob is when the specified leg number is not present in the class
+    
     class_feat_counts: key = class, val = [count, feat_count: key = feat, val = count]
     """
     class_feat_prob = {}
@@ -33,7 +36,9 @@ def compute_probability_table(data):
         feat_prob = {}
         for feat_name, feat_count in class_stats[1].items():
             feat_prob[feat_name] = (feat_count + a) / (class_count + a * d)
-        class_feat_prob[class_type] = ((class_count + a) / (num_rows + a * d), feat_prob)
+        class_feat_prob[class_type] = ((class_count + a) / (num_rows + a * d)
+                                       , a / (class_count + a * d)
+                                       , feat_prob)
         
     return class_feat_prob
 
@@ -41,11 +46,13 @@ def calc_nb(class_type, feat_name, class_stats, row):
     nb = math.log2(class_stats[0])
             
     for feat_name, feat_val in row[1:-1].items():
-        feat_probs = class_stats[1]
+        feat_probs = class_stats[2]
         if feat_name in CATEGORICAL_COLS:
             feat_name = f'{feat_name}_{feat_val}'
             if feat_name in feat_probs:
                 nb += math.log2(feat_probs[feat_name])
+            else:
+                nb += math.log2(class_stats[1]) # Default leg number probability
         elif feat_val > 0:
             nb += math.log2(feat_probs[feat_name])
             
@@ -66,26 +73,30 @@ def run_test(test, class_feat_prob):
     num_correct = 0
     
     for i, row in test.iterrows():
-        for val in row.to_list():
-            print(val, end=',')
 
         # Calculate Naiive Bayes odds for each class
         highest_nb = (0, None)
+        sum_of_nbs = 0
 
         for class_type, class_stats in class_feat_prob.items():
             nb = calc_nb(class_type,feat_name,class_stats,row)
+            sum_of_nbs += nb
             
             if nb > highest_nb[0]:
                 highest_nb = (nb, class_type)
                 
+        for val in row.to_list():
+            print(val, end=',')
         print(highest_nb[1], end=',')
-        print(highest_nb[0], end=',')
+        print(highest_nb[0] / sum_of_nbs, end=',')
         if highest_nb[1] == row[LABEL_COL]:
             print('CORRECT')
             num_correct += 1
         else:
             print('wrong')
-    print('Percent Correct:', num_correct / test.shape[0])
+            
+    if DEBUG:
+        print('Percent Correct:', num_correct / test.shape[0])
 
 def main():
     data = pd.read_csv('zoo.csv')
@@ -93,7 +104,6 @@ def main():
     train = data.sample(frac=0.7)
     test = data.drop(train.index)
     class_feat_prob = compute_probability_table(train)
-    # print(class_feat_prob)
     
     run_test(test, class_feat_prob)
 
