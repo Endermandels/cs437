@@ -8,12 +8,20 @@ DEBUG = False
 
 def compute_probability_table(data):
     """
-    class_feat_prob: key = class, val = (prob, default_leg_prob, feat_prob: key = feat, val = prob)
+    class_feat_prob: { key = class, val = (
+            prob
+            , default_leg_prob
+            , feat_prob: { key = feat, val = prob}
+            , not_feat_prob: {key = feat, val = not_prob}
+        ) 
+    }
     default_leg_prob is when the specified leg number is not present in the class
+    not_prob refers to the probability of a feature not occuring
     
     class_feat_counts: key = class, val = [count, feat_count: key = feat, val = count]
     """
     class_feat_prob = {}
+    not_class_feat_prob = {}
     class_feat_counts = defaultdict(lambda: [0, defaultdict(lambda: 0)])
     
     for i, row in data.iterrows():
@@ -29,24 +37,30 @@ def compute_probability_table(data):
     num_rows = data.shape[0]
     
     a = 0.01
-    d = 1
     
     for class_type, class_stats in class_feat_counts.items():
         class_count = class_stats[0]
         feat_prob = {}
+        not_feat_prob = {}
         for feat_name, feat_count in class_stats[1].items():
+            d = 2
+            if 'legs' in feat_name:
+                d = 6
             feat_prob[feat_name] = (feat_count + a) / (class_count + a * d)
-        class_feat_prob[class_type] = ((class_count + a) / (num_rows + a * d)
-                                       , a / (class_count + a * d)
-                                       , feat_prob)
-        
+            not_feat_prob[feat_name] = (class_count - feat_count + a) / (class_count + a * d)
+        class_feat_prob[class_type] = ((class_count + a) / (num_rows + a * 7)
+                                       , a / (class_count + a * 6)
+                                       , feat_prob
+                                       , not_feat_prob)
+    
     return class_feat_prob
 
-def calc_nb(class_type, feat_name, class_stats, row):
+def calc_nb(class_stats, row):
     nb = math.log2(class_stats[0])
             
     for feat_name, feat_val in row[1:-1].items():
         feat_probs = class_stats[2]
+        not_feat_probs = class_stats[3]
         if feat_name in CATEGORICAL_COLS:
             feat_name = f'{feat_name}_{feat_val}'
             if feat_name in feat_probs:
@@ -55,6 +69,8 @@ def calc_nb(class_type, feat_name, class_stats, row):
                 nb += math.log2(class_stats[1]) # Default leg number probability
         elif feat_val > 0:
             nb += math.log2(feat_probs[feat_name])
+        else:
+            nb += math.log2(not_feat_probs[feat_name])
             
     return pow(2, nb)
 
@@ -81,7 +97,7 @@ def run_test(test, class_feat_prob):
         sum_of_nbs = 0
 
         for class_type, class_stats in class_feat_prob.items():
-            nb = calc_nb(class_type,feat_name,class_stats,row)
+            nb = calc_nb(class_stats,row)
             sum_of_nbs += nb
             
             if nb > highest_nb[0]:
