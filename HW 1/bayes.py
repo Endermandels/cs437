@@ -1,7 +1,6 @@
 from collections import defaultdict
 import pandas as pd
 import math
-import sys
 
 LABEL_COL = 'class_type'
 CATEGORICAL_COLS = ['legs']
