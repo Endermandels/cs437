@@ -10,6 +10,7 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import numpy as np
 
@@ -81,16 +82,23 @@ def data_corr():
     data = pd.read_csv('AmesHousing.csv')
     
     numeric_columns = data.select_dtypes(include=['float64', 'int64']).columns
-    numeric_columns = numeric_columns.drop(TARGET)
+    numeric_columns = numeric_columns.drop([TARGET, 'Order', 'PID', 'BsmtFin SF 2', 'Low Qual Fin SF', '3Ssn Porch', 'Pool Area', 'Misc Val', 'Mo Sold', 'Yr Sold'
+                                            , 'Garage Cars', 'Garage Yr Blt'])
 
-    for col in numeric_columns:
-        plt.figure(figsize=(6,4))
-        plt.scatter(data[col], data[TARGET], alpha=0.5)
-        plt.title(f'{col} vs {TARGET}')
-        plt.xlabel(col)
-        plt.ylabel(TARGET)
-        plt.grid(True)
-        plt.show()
+    # for col in numeric_columns:
+    #     plt.figure(figsize=(6,4))
+    #     plt.scatter(data[col], data[TARGET], alpha=0.5)
+    #     plt.title(f'{col} vs {TARGET}')
+    #     plt.xlabel(col)
+    #     plt.ylabel(TARGET)
+    #     plt.grid(True)
+    #     plt.show()
+    
+    correlation_matrix = data[numeric_columns].corr()
+
+    plt.figure(figsize=(12,8))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+    plt.show()
 
 if __name__ == '__main__':
     main()
