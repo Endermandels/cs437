@@ -28,6 +28,17 @@ class SelectColumns(BaseEstimator, TransformerMixin):
     def transform(self, xs):
         return xs[self.columns]
 
+class TransformData(BaseEstimator, TransformerMixin):
+    def __init__(self, func):
+        self.func = func
+
+    def fit(self, xs, ys, **params):
+        return self
+    
+    def transform(self, xs):
+        result = xs.apply(self.func)
+        assert np.all(np.isfinite(result))
+        return result
 
 def main():
     data = pd.read_csv('AmesHousing.csv')
@@ -55,6 +66,9 @@ def main():
         'column_select__columns': [
             list(numeric_columns) + list(categorical_columns)
         ],
+        'transform_data__func': [
+            lambda x: np.where(x > 0, np.sqrt(x), 0)
+        ],
         'linear_regression': [
             TransformedTargetRegressor(
                 LinearRegression(n_jobs=-1),
@@ -76,6 +90,7 @@ def main():
     
     steps = [
         ('column_select', SelectColumns(['Gr Liv Area', 'Overall Qual']))
+        , ('transform_data', TransformData(lambda x: x))
         , ('linear_regression', TransformedTargetRegressor(
                 LinearRegression(n_jobs=-1),
                 func = lambda x: x,
@@ -114,6 +129,8 @@ def data_corr():
     data = pd.concat([data, encoded_df], axis=1)
     
     categorical_columns = encoder.get_feature_names_out(categorical_columns)
+    
+    assert data.isna().sum().sum() == 0
     
     for col in categorical_columns:
         plt.figure(figsize=(6,4))
