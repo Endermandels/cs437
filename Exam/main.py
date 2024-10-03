@@ -1,32 +1,41 @@
-# CC 1 (Code Cel 1)
-from sklearn.preprocessing import MinMaxScaler
+# C 2 (Cel 1)
 from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import *
 
 import pandas as pd
-import numpy as np
 
-# CC 2
-data = pd.read_csv("Video Games Sales.csv")
-# Only want platform, year, genre and publisher to determine how many sales it generated globally
-data = data.drop(columns=['index', 'Rank', 'Game Title', 'North America', 'Europe'
-                          , 'Japan', 'Rest of World', 'Review'])
+def main():
+    # C 3
+    TARGET = 'Rest of World'
+    data = pd.read_csv("Video Games Sales.csv")
+    data = data[['North America', 'Europe', 'Japan', 'Rest of World']]
+    data.fillna(value=0, inplace=True)
+    
+    xs = data.drop(columns=[TARGET])
+    ys = data[TARGET]
+    
+    x_train, x_test, y_train, y_test = train_test_split(xs, ys, train_size=0.7)
 
-categorical_columns = data.select_dtypes(include=['object', 'category']).columns
-numeric_columns = data.select_dtypes(include=['float64', 'int64']).columns
-categorical_data = pd.get_dummies(data[categorical_columns], dtype=np.int64)
+    print(x_train)
+    print(x_test)
+    print(y_train)
+    print(y_test)
 
-data = data.drop(categorical_columns, axis=1)
-data = pd.concat([data, categorical_data], axis=1)
-data.fillna(value=0, inplace=True)
+    # C 4
+    steps = [
+        ('scale', MinMaxScaler()),
+        ('predict', LinearRegression(n_jobs=-1))
+    ]
+    pipe = Pipeline(steps)
+    pipe.fit(x_train, y_train)
+    
+    
+    # C 5
+    predicted_ys = pipe.predict(x_test)
+    print('r2', r2_score(y_test, predicted_ys))
 
-xs = data.drop(columns=['Global'])
-ys = data['Global']
-
-x_train, x_test, y_train, y_test = train_test_split(xs, ys, train_size=0.7)
-
-print(x_train)
-print(x_test)
-print(y_train)
-print(y_test)
-
-
+if __name__ == '__main__':
+    main()
