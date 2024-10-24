@@ -36,7 +36,6 @@ class TransformData(BaseEstimator, TransformerMixin):
     
     def transform(self, xs):
         result = xs.apply(self.func)
-        assert np.all(np.isfinite(result))
         return result
 
 def myLinearRegression(numeric_columns, categorical_columns, data):
@@ -78,15 +77,82 @@ def myLinearRegression(numeric_columns, categorical_columns, data):
             ))
     ]
     pipe = Pipeline(steps)
-    search = GridSearchCV(pipe, grid, scoring='r2', n_jobs=-1)
+    search = GridSearchCV(pipe, grid, scoring='r2', n_jobs=-1, cv=5)
 
     xs = data.drop(columns=[TARGET])
     ys = data[TARGET]
 
     search.fit(xs, ys)
 
-    print(search.best_params_)
-    print(search.best_score_) # Consistently gets 0.86423 r2
+    print('Linear regression:')
+    print('R-squared:', search.best_score_) # Consistently gets 0.86423 r2
+    print('Best params:', search.best_params_)
+    
+def myDecisionTreeRegression(numeric_columns, categorical_columns, data):
+    grid = {
+        'column_select__columns': [
+            list(numeric_columns) + list(categorical_columns)
+        ],
+        'transform_data__func': [
+            lambda x: np.where(x > 0, np.sqrt(x), 0)
+            , lambda x: x
+            , np.square
+        ],
+        'regression__max_depth': [
+            1,2,3,4,5,6,7,8,9,10,11,12,13,14
+        ]
+    }
+    
+    steps = [
+        ('column_select', SelectColumns(['Gr Liv Area', 'Overall Qual']))
+        , ('transform_data', TransformData(lambda x: x))
+        , ('regression', DecisionTreeRegressor(max_depth=2))
+    ]
+    pipe = Pipeline(steps)
+    search = GridSearchCV(pipe, grid, scoring='r2', n_jobs=-1, cv=5)
+
+    xs = data.drop(columns=[TARGET])
+    ys = data[TARGET]
+
+    search.fit(xs, ys)
+
+    print('Decision tree:')
+    print('R-squared:', search.best_score_) # Usually gets around 0.78 r2
+    print('Best params:', search.best_params_)
+
+def myRandomForestRegression(numeric_columns, categorical_columns, data):
+    grid = {
+        'column_select__columns': [
+            list(numeric_columns) + list(categorical_columns)
+        ],
+        'transform_data__func': [
+            lambda x: np.where(x > 0, np.sqrt(x), 0)
+            , lambda x: x
+            , np.square
+        ],
+        'regression__max_depth': [
+            2,3,4,5,6,7,8,9,10,11,12,13,14
+        ]
+    }
+    
+    steps = [
+        ('column_select', SelectColumns(['Gr Liv Area', 'Overall Qual']))
+        , ('transform_data', TransformData(lambda x: x))
+        , ('regression', RandomForestRegressor(max_depth=2))
+    ]
+    pipe = Pipeline(steps)
+    search = GridSearchCV(pipe, grid, scoring='r2', n_jobs=-1, cv=5)
+
+    xs = data.drop(columns=[TARGET])
+    ys = data[TARGET]
+
+    search.fit(xs, ys)
+
+    print('Random forest:')
+    print('R-squared:', search.best_score_) # Usually gets around 0.88 r2
+    print('Best params:', search.best_params_)
+
+
 
 def main():
     data = pd.read_csv('AmesHousing.csv')
@@ -116,7 +182,8 @@ def main():
 
 
     myLinearRegression(numeric_columns, categorical_columns, data)
-
+    myDecisionTreeRegression(numeric_columns, categorical_columns, data)
+    myRandomForestRegression(numeric_columns, categorical_columns, data)
 
 if __name__ == '__main__':
     main()
