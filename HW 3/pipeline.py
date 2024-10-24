@@ -85,7 +85,7 @@ def myLinearRegression(numeric_columns, categorical_columns, data):
     search.fit(xs, ys)
 
     print('Linear regression:')
-    print('R-squared:', search.best_score_) # Consistently gets 0.86423 r2
+    print('R-squared:', search.best_score_) # Usually gets 0.83 r2
     print('Best params:', search.best_params_)
     
 def myDecisionTreeRegression(numeric_columns, categorical_columns, data):
@@ -128,10 +128,11 @@ def myRandomForestRegression(numeric_columns, categorical_columns, data):
         'transform_data__func': [
             lambda x: np.where(x > 0, np.sqrt(x), 0)
             , lambda x: x
-            , np.square
+            # , np.square
         ],
         'regression__max_depth': [
-            2,3,4,5,6,7,8,9,10,11,12,13,14
+            # 2,3,4,5,6,7,8,9,10,11,12,13,14
+            6,8,12,13
         ]
     }
     
@@ -150,6 +151,43 @@ def myRandomForestRegression(numeric_columns, categorical_columns, data):
 
     print('Random forest:')
     print('R-squared:', search.best_score_) # Usually gets around 0.88 r2
+    print('Best params:', search.best_params_)
+
+def myGradientBoostingRegression(numeric_columns, categorical_columns, data):
+    grid = {
+        'column_select__columns': [
+            list(numeric_columns) + list(categorical_columns)
+        ],
+        'transform_data__func': [
+            lambda x: np.where(x > 0, np.sqrt(x), 0)
+            , lambda x: x
+            # , np.square
+        ],
+        'regression__max_depth': [
+            # 2,3,4,5,6,7,8,9
+            3
+        ],
+        'regression__learning_rate': [
+            # 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+            0.1
+        ]
+    }
+    
+    steps = [
+        ('column_select', SelectColumns(['Gr Liv Area', 'Overall Qual']))
+        , ('transform_data', TransformData(lambda x: x))
+        , ('regression', GradientBoostingRegressor(max_depth=2))
+    ]
+    pipe = Pipeline(steps)
+    search = GridSearchCV(pipe, grid, scoring='r2', n_jobs=-1, cv=5)
+
+    xs = data.drop(columns=[TARGET])
+    ys = data[TARGET]
+
+    search.fit(xs, ys)
+
+    print('Gradient boosting:')
+    print('R-squared:', search.best_score_) # Usually gets around 0.90 r2
     print('Best params:', search.best_params_)
 
 
@@ -184,6 +222,7 @@ def main():
     myLinearRegression(numeric_columns, categorical_columns, data)
     myDecisionTreeRegression(numeric_columns, categorical_columns, data)
     myRandomForestRegression(numeric_columns, categorical_columns, data)
+    myGradientBoostingRegression(numeric_columns, categorical_columns, data)
 
 if __name__ == '__main__':
     main()
